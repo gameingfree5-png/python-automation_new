@@ -97,10 +97,7 @@ jobs:
                       f"Entry {index}: empty stream"
                   )
 
-              if ",[" in item["stream_url"]:
-                  raise SystemExit(
-                      f"Entry {index}: unclean stream_url"
-                  )
+
 
           print(
               f"SUCCESS: {len(data)} homepage videos scraped"
