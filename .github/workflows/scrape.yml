@@ -42,7 +42,7 @@ jobs:
         env:
           BASE_URL: ${{ vars.BASE_URL || 'https://pornhao.com' }}
         run: |
-          python3 demo.py --headless --max-pages 2 \
+          python3 demo.py --headless --max-pages 10 \
             --group-title home \
             --output-json playlist.json \
             --output-m3u playlist.m3u
