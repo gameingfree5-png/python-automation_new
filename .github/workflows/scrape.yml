@@ -43,7 +43,7 @@ jobs:
         run: |
           python3 demo.py \
             --headless \
-            --max-pages 100 \
+            --max-pages 2 \
             --group-title "home" \
             --output-json playlist.json \
             --output-m3u playlist.m3u
