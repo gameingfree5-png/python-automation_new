@@ -695,7 +695,7 @@ def scrape_home(
                         ),
                         "title": info["title"],
                         "page_url": url,
-                        "stream_url": info["url"],
+                        "stream_url": info["url"].split(",[", 1)[0].strip(),
                         "thumbnail": (
                             info["thumbnail"] or avatar
                         ),
