@@ -541,10 +541,31 @@ def parse_video_info(markup, video_url):
         thumbnail
     )
 
-    raw_stream = extract_stream(
-        markup,
+    raw_stream = extract_stream(markup, video_url)
+
+    if not raw_stream:
+        return None
+
+    raw_stream = html.unescape(
+        str(raw_stream)
+    ).replace("\\/", "/").strip()
+
+    qualities = parse_qualities(
+        raw_stream,
         video_url
     )
+
+    auto_url = get_auto_url(qualities)
+
+    if not auto_url:
+        return None
+
+    return {
+        "title": title,
+        "url": raw_stream,
+        "thumbnail": thumbnail,
+        "qualities": qualities
+    }
 
     if not raw_stream:
         return None
