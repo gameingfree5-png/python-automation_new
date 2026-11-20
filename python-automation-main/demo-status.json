@@ -1,0 +1,8 @@
+{
+  "message": "Demo playlist refreshed successfully!",
+  "last_updated_utc": "2026-11-19T13:02:21+00:00",
+  "last_updated_ist": "2026-11-19T18:32:21+05:30",
+  "refresh_interval_hours": 5,
+  "playlist_file": "playlist.json",
+  "playlist_entries": 1
+}
