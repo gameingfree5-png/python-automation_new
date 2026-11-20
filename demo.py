@@ -1,107 +1,106 @@
-#!/usr/bin/env python3
-"""Scrape two homepage listing pages; preserve the original combined stream format."""
 
-import argparse
-import html
-import json
-import logging
-import os
-import re
-import sys
-import time
-from pathlib import Path
-from urllib.parse import urljoin, urlsplit, urldefrag
+name: Scrape and Save Home Playlist
 
-import requests
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */2 * * *'
 
-BASE_URL = os.environ.get("BASE_URL", "https://pornhao.com").rstrip("/")
-SCROLL_PAUSE = 2
-REQUEST_DELAY = 1
-SCRIPT_VERSION = "home-2pages-original-stream-v3"
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-log = logging.getLogger(__name__)
+permissions:
+  contents: write
 
+concurrency:
+  group: playlist-scraper
+  cancel-in-progress: false
 
-def get_driver(headless=False):
-    options = webdriver.ChromeOptions()
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
 
-    if headless:
-        options.add_argument("--headless=new")
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    driver = webdriver.Chrome(options=options)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 selenium
 
-    # Full page load ka wait nahi karega.
-    driver.set_page_load_timeout(90)
-    driver.set_script_timeout(30)
-    driver.execute_cdp_cmd(
-        "Page.enable", {}
-    )
+      - name: Verify script version and syntax
+        run: |
+          python3 -m py_compile demo.py
+          grep -n 'SCRIPT_VERSION = "home-2pages-original-stream-v4-timeout"' demo.py
+          git rev-parse --short HEAD
 
-    return driver
+      - name: Run homepage scraper
+        env:
+          BASE_URL: ${{ vars.BASE_URL || 'https://myvideo.com' }}
+        run: |
+          python3 demo.py --headless --max-pages 2 \
+            --group-title home \
+            --output-json playlist.json \
+            --output-m3u playlist.m3u
 
+      - name: Verify playlist data
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          from pathlib import Path
 
-def scroll_to_load_all(driver, max_scrolls=50):
-    last_height = driver.execute_script("return document.body.scrollHeight")
-    unchanged = 0
-    for _ in range(max_scrolls):
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
-        time.sleep(SCROLL_PAUSE)
-        height = driver.execute_script("return document.body.scrollHeight")
-        unchanged = unchanged + 1 if height == last_height else 0
-        if unchanged >= 2:
-            break
-        last_height = height
+          p = Path('playlist.json')
+          m3u = Path('playlist.m3u')
 
+          if not p.exists() or not m3u.exists():
+              raise SystemExit('Playlist output missing')
 
-def same_site(url):
-    return urlsplit(url).netloc.lower() == urlsplit(BASE_URL).netloc.lower()
+          data = json.loads(
+              p.read_text(encoding='utf-8')
+          )
 
+          if not isinstance(data, list) or not data:
+              raise SystemExit('No videos scraped')
 
-def extract_video_urls(driver):
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    urls = []
-    seen = set()
-    for anchor in soup.select("a[href], a[data-href]"):
-        href = anchor.get("data-href") or anchor.get("href", "")
-        url = urldefrag(urljoin(driver.current_url, href))[0]
-        if same_site(url) and "/video/" in urlsplit(url).path and url not in seen:
-            seen.add(url)
-            urls.append(url)
-    return urls
+          required = {
+              'model',
+              'title',
+              'page_url',
+              'stream_url',
+              'thumbnail',
+              'qualities'
+          }
 
+          for i, item in enumerate(data, 1):
+              if not required.issubset(item):
+                  raise SystemExit(
+                      f'Missing fields in video {i}'
+                  )
 
-def find_next_page(markup, current_url):
-    soup = BeautifulSoup(markup, "html.parser")
-    candidates = list(soup.select(
-        'a[rel~="next"], link[rel~="next"], a.next, .next a, '
-        'a[aria-label="Next"], a[aria-label="Next page"]'
-    ))
-    pagination = soup.select(".pagination, .page-numbers, .pager, nav[aria-label*='agination']")
-    for anchor in soup.select("a[href]"):
-        label = " ".join([
-            anchor.get_text(" ", strip=True),
-            anchor.get("aria-label", ""),
-            anchor.get("title", "")
-        ]).lower().strip()
-        if re.search(r"\bnext(?:\s+page)?\b|\bolder posts\b", label) or label in {"›", "»", "→", ">", ">>"}:
-            candidates.append(anchor)
+              if not item['stream_url']:
+                  raise SystemExit(
+                      f'Empty stream in video {i}'
+                  )
 
-    def valid_listing(url):
-        path = urlsplit(url).path.lower()
-        return (same_site(url) and url != urldefrag(current_url)[0]
-                and "/video/" not in path
-                and "/models/" not in path
-                and "/model/" not in path)
+          print(
+              f'SUCCESS: {len(data)} videos saved'
+          )
+          PYCODE
 
-    for element in candidates:
+      - name: Commit playlist to GitHub
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git add playlist.json playlist.m3u
+
+          if git diff --cached --quiet; then
+            echo 'No playlist changes'
+          else
+            git commit -m 'Auto update homepage playlist'
+            git push
+          fi
