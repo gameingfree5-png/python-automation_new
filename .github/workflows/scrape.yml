@@ -30,12 +30,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4 selenium
 
-      - name: Check Python syntax
-        run: python3 -m py_compile demo.py
+      - name: Verify script version and syntax
+        run: |
+          python3 -m py_compile demo.py
+          grep -n 'SCRIPT_VERSION = "home-2pages-original-stream-v3"' demo.py
+          git rev-parse --short HEAD
 
       - name: Run homepage scraper
         env:
-          BASE_URL: https://pornhao.com
+          BASE_URL: ${{ vars.BASE_URL || 'https://pornhao.com' }}
         run: |
           python3 demo.py --headless --max-pages 2 \
             --group-title home \
