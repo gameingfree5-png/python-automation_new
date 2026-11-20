@@ -40,7 +40,7 @@ jobs:
 
       - name: Run homepage scraper
         env:
-          BASE_URL: ${{ vars.BASE_URL || 'https://myvideo.com' }}
+          BASE_URL: ${{ vars.BASE_URL || 'https://pornhao.com' }}
         run: |
           python3 demo.py --headless --max-pages 2 \
             --group-title home \
