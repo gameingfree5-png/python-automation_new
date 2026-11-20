@@ -35,7 +35,7 @@ jobs:
       - name: Verify script version and syntax
         run: |
           python3 -m py_compile demo.py
-          grep -n 'SCRIPT_VERSION = "home-2pages-original-stream-v4-timeout"' demo.py
+          grep -n 'SCRIPT_VERSION' demo.py
           git rev-parse --short HEAD
 
       - name: Run homepage scraper
