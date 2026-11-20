@@ -553,6 +553,16 @@ def parse_video_info(markup, video_url):
         raw_stream,
         video_url
     )
+    
+    if not auto_url:
+        return None
+    
+    return {
+        "title": title,
+        "url": absolute_url(video_url, raw_stream),
+        "thumbnail": thumbnail,
+        "qualities": qualities
+    }
 
     auto_url = get_auto_url(qualities)
 
