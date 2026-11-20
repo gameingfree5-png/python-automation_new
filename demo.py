@@ -561,11 +561,11 @@ def parse_qualities(raw_stream):
     return output
 
 
-def scrape_home(
-    max_videos=None,
-    headless=False,
-    max_pages=2
-):
+    def scrape_home(
+        max_videos=None,
+        headless=False,
+        max_pages=2
+    ):
     driver = get_driver(headless)
     results = []
 
