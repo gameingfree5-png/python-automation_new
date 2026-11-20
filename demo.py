@@ -908,7 +908,7 @@ def main():
     parser.add_argument(
         "--max-pages",
         type=int,
-        default=100,
+        default=2,
         help="Maximum homepage listing pages"
     )
 
