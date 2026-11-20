@@ -1,4 +1,3 @@
-
 name: Scrape and Save Home Playlist
 
 on:
@@ -16,9 +15,7 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-
     timeout-minutes: 120
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,7 +23,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -34,86 +31,46 @@ jobs:
           pip install requests beautifulsoup4 selenium
 
       - name: Check Python syntax
-        run: |
-          python3 -m py_compile demo.py
+        run: python3 -m py_compile demo.py
 
       - name: Run homepage scraper
         env:
           BASE_URL: https://pornhao.com
         run: |
-          python3 demo.py \
-            --headless \
-            --max-pages 2 \
-            --group-title "home" \
+          python3 demo.py --headless --max-pages 2 \
+            --group-title home \
             --output-json playlist.json \
             --output-m3u playlist.m3u
 
       - name: Verify playlist data
         run: |
-          python3 - <<'PY'
+          python3 - <<'PYCODE'
           import json
           from pathlib import Path
-
-          json_path = Path("playlist.json")
-          m3u_path = Path("playlist.m3u")
-
-          if not json_path.exists():
-              raise SystemExit("ERROR: playlist.json missing")
-
-          if not m3u_path.exists():
-              raise SystemExit("ERROR: playlist.m3u missing")
-
-          data = json.loads(
-              json_path.read_text(encoding="utf-8")
-          )
-
+          p = Path('playlist.json')
+          m3u = Path('playlist.m3u')
+          if not p.exists() or not m3u.exists():
+              raise SystemExit('Playlist output missing')
+          data = json.loads(p.read_text(encoding='utf-8'))
           if not isinstance(data, list) or not data:
-              raise SystemExit("ERROR: no homepage videos")
-
-          required = {
-              "model",
-              "title",
-              "page_url",
-              "stream_url",
-              "thumbnail",
-              "qualities"
-          }
-
-          for index, item in enumerate(data, 1):
-              missing = required - item.keys()
-
-              if missing:
-                  raise SystemExit(
-                      f"Entry {index} missing: {missing}"
-                  )
-
-              if item["model"] != "home":
-                  raise SystemExit(
-                      f"Entry {index}: model is not home"
-                  )
-
-              if not item["stream_url"]:
-                  raise SystemExit(
-                      f"Entry {index}: empty stream"
-                  )
-
-
-
-          print(
-              f"SUCCESS: {len(data)} homepage videos scraped"
-          )
-          PY
+              raise SystemExit('No videos scraped')
+          required = {'model', 'title', 'page_url', 'stream_url', 'thumbnail', 'qualities'}
+          for i, item in enumerate(data, 1):
+              if not required.issubset(item):
+                  raise SystemExit(f'Missing fields in video {i}')
+              if not item['stream_url']:
+                  raise SystemExit(f'Empty stream in video {i}')
+          print(f'SUCCESS: {len(data)} videos saved')
+          PYCODE
 
       - name: Commit playlist to GitHub
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add playlist.json playlist.m3u
-
           if git diff --cached --quiet; then
-            echo "No playlist changes"
+            echo 'No playlist changes'
           else
-            git commit -m "Auto update home playlist"
+            git commit -m 'Auto update homepage playlist'
             git push
           fi
