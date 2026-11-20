@@ -826,7 +826,7 @@ def main():
     parser.add_argument(
         "--max-pages",
         type=int,
-        default=2
+        default=10
     )
 
     parser.add_argument(
